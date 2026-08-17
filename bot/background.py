@@ -41,9 +41,9 @@ async def periodic_sync_task(bot: Bot):
 
                     # Вариант 1: Время истекло
                     if now >= exp_at:
-                        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                            [InlineKeyboardButton(text="🔒 Время рисования истекло", callback_data="expired")]
-                        ])
+                        #keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                        #    [InlineKeyboardButton(text="🔒 Время рисования истекло", callback_data="expired")]
+                        #])
                         media = InputMediaPhoto(
                             media=input_file,
                             caption=post.caption
@@ -52,7 +52,7 @@ async def periodic_sync_task(bot: Bot):
                             chat_id=settings.CHANNEL_ID,
                             message_id=post.channel_message_id,
                             media=media,
-                            reply_markup=keyboard
+                            reply_markup=None
                         )
                         await mark_post_expired(post.id)
                         logger.info(f"Пост {post.id} заблокирован по истечении времени.")
@@ -61,7 +61,7 @@ async def periodic_sync_task(bot: Bot):
                     elif post.is_dirty:
                         draw_url = f"{settings.BASE_URL}/draw/{post.id}"
                         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                            [InlineKeyboardButton(text="🎨 Нарисовать сверху", url=draw_url)]
+                            [InlineKeyboardButton(text="🎨 Paint", url=draw_url)]
                         ])
                         media = InputMediaPhoto(
                             media=input_file,

@@ -11,7 +11,7 @@ router = Router()
 async def handle_photo(message: Message):
     # Проверка списка админов
     if message.from_user.id not in settings.admin_ids_set:
-        await message.reply("⛔ Доступ запрещен. Вы не являетесь администратором.")
+        await message.reply("⛔ Сорян, только для админов @brainrotting_shitpost\nмб потом сделаю публичный доступ")
         return
 
     photo = message.photo[-1]
@@ -30,7 +30,7 @@ async def handle_photo(message: Message):
 
     draw_url = f"{settings.BASE_URL}/draw/{post_id}"
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎨 Нарисовать сверху", url=draw_url)]
+        [InlineKeyboardButton(text="🎨 Paint", url=draw_url)]
     ])
 
     # Отправляем в канал с исходной подписью админа
