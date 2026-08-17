@@ -2,16 +2,109 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TelePaint</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #181818; color: #fff; margin: 0; padding: 10px; }
-        /* Добавили белый фон контейнеру на всякий случай */
-        #canvas-container { margin: 10px auto; display: inline-block; border: 2px solid #333; background: #fff; }
-        .controls { margin: 15px 0; }
-        button, input { padding: 10px 15px; margin: 5px; font-size: 16px; border-radius: 8px; border: none; }
-        button { background: #24A1DE; color: #fff; cursor: pointer; }
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            text-align: center;
+            background: #181818;
+            color: #fff;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h2 {
+            margin: 10px 0;
+            font-size: 1.3rem;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+            background: none;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #fff;
+            border-radius: 50%;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            min-width: 100px;
+            max-width: 160px;
+        }
+
+        button {
+            padding: 10px 18px;
+            font-size: 15px;
+            font-weight: bold;
+            border-radius: 8px;
+            border: none;
+            background: #24A1DE;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+        }
+
+        button:active {
+            background: #1d82b3;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #canvas-container {
+            margin: 10px auto;
+            border: 2px solid #333;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            /* Блокируем стандартные жесты браузера только на самом холсте */
+            touch-action: none;
+        }
+
+        .canvas-container {
+            margin: 0 auto !important;
+            touch-action: none;
+        }
+
+        canvas {
+            touch-action: none;
+        }
     </style>
 </head>
 <body>
@@ -26,58 +119,93 @@
     <div id="canvas-container" 
         data-post-id="{{ post_id }}" 
         data-is-expired="false">
-        <!-- Убедились, что id именно "canvas" -->
         <canvas id="canvas"></canvas>
     </div>
 
     <script>
-        // 1. Находим контейнер и забираем данные из дата-атрибутов
         const container = document.getElementById('canvas-container');
         const postId = container.dataset.postId;
         const isExpired = container.dataset.isExpired === 'true';
 
-        // 2. Инициализируем холст Fabric.js
-        // ИСПРАВЛЕНО: 'c' заменено на 'canvas'
-        const canvas = new fabric.Canvas('canvas', { isDrawingMode: !isExpired });
+        let imgScale = 1; // Масштаб для сохранения исходного качества
+
+        const canvas = new fabric.Canvas('canvas', { 
+            isDrawingMode: !isExpired,
+            selection: false
+        });
+
         canvas.freeDrawingBrush.color = '#ff0000';
         canvas.freeDrawingBrush.width = 5;
 
-        // 3. Загружаем текущую картинку с бэкенда на холст
-        // ИСПРАВЛЕНО: добавлен crossOrigin, чтобы не было ошибки Tainted Canvas при сохранении
+        // Загрузка и адаптация изображения под мобильный экран
         fabric.Image.fromURL('/media_file/current_' + postId + '.png', function(img) {
             if (!img) {
                 console.error("Ошибка: изображение не загружено");
+                alert("Не удалось загрузить изображение.");
                 return;
             }
-            canvas.setWidth(img.width);
-            canvas.setHeight(img.height);
+
+            // Вычисляем максимальную ширину для экрана смартфона (с небольшим отступом)
+            const padding = 20;
+            const maxDisplayWidth = Math.min(window.innerWidth - padding, 800);
+            
+            // Рассчитываем коэффициент масштабирования
+            imgScale = Math.min(maxDisplayWidth / img.width, 1);
+
+            const displayWidth = img.width * imgScale;
+            const displayHeight = img.height * imgScale;
+
+            // Задаём физический размер холста на экране
+            canvas.setDimensions({
+                width: displayWidth,
+                height: displayHeight
+            });
+
+            // Масштабируем фоновое изображение под видимый холст
+            img.scaleToWidth(displayWidth);
+
             canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
                 originX: 'left',
                 originY: 'top'
             });
+
+            // Корректируем смещение для точного определения касаний пальцем
+            canvas.calcOffset();
+
         }, { crossOrigin: 'anonymous' });
 
-        // 4. Настраиваем обработчики выбора цвета и размера кисти
-        document.getElementById('colorPicker').onchange = (e) => canvas.freeDrawingBrush.color = e.target.value;
-        document.getElementById('sizePicker').onchange = (e) => canvas.freeDrawingBrush.width = parseInt(e.target.value, 10);
+        // Выбор цвета и размера кисти
+        document.getElementById('colorPicker').onchange = (e) => {
+            canvas.freeDrawingBrush.color = e.target.value;
+        };
 
-        // 5. Логика сохранения по кнопке
+        document.getElementById('sizePicker').oninput = (e) => {
+            canvas.freeDrawingBrush.width = parseInt(e.target.value, 10);
+        };
+
+        // Сохранение результатов
         document.getElementById('saveBtn').onclick = async () => {
             if (isExpired) {
                 alert('Время редактирования истекло!');
                 return;
             }
             
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.innerText = '⏳ Сохраняю...';
+
             try {
-                // ИСПРАВЛЕНО: Надежный метод получения итогового изображения в Fabric.js
-                const dataURL = canvas.toDataURL({ format: 'png' });
-                // Конвертируем base64 (dataURL) в Blob объект
+                // Экспортируем с учетом масштаба обратно в исходное разрешение
+                const dataURL = canvas.toDataURL({ 
+                    format: 'png',
+                    multiplier: 1 / imgScale
+                });
+
                 const blob = await (await fetch(dataURL)).blob();
 
                 const formData = new FormData();
                 formData.append('file', blob, 'drawing.png');
 
-                // Отправляем картинку на наш FastAPI
                 const res = await fetch('/api/post/' + postId + '/update', { 
                     method: 'POST', 
                     body: formData 
@@ -91,8 +219,16 @@
             } catch (err) {
                 console.error("Ошибка при сохранении:", err);
                 alert('❌ Произошла ошибка при формировании картинки.');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerText = '💾 Сохранить';
             }
         };
+
+        // Перерасчет координат кликов при изменении ориентации экрана
+        window.addEventListener('resize', () => {
+            if (canvas) canvas.calcOffset();
+        });
     </script>
 </body>
 </html>
