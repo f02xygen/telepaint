@@ -1,0 +1,6 @@
+.env
+__pacache__/
+*.pyc
+*.pyo
+media
+venv

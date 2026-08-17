@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TelePaint</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #181818; color: #fff; margin: 0; padding: 10px; }
+        /* Добавили белый фон контейнеру на всякий случай */
+        #canvas-container { margin: 10px auto; display: inline-block; border: 2px solid #333; background: #fff; }
+        .controls { margin: 15px 0; }
+        button, input { padding: 10px 15px; margin: 5px; font-size: 16px; border-radius: 8px; border: none; }
+        button { background: #24A1DE; color: #fff; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>🎨 Нарисуй поверх мема!</h2>
+    
+    <div class="controls">
+        <input type="color" id="colorPicker" value="#ff0000">
+        <input type="range" id="sizePicker" min="1" max="50" value="5">
+        <button id="saveBtn">💾 Сохранить</button>
+    </div>
+
+    <div id="canvas-container" 
+        data-post-id="{{ post_id }}" 
+        data-is-expired="false">
+        <!-- Убедились, что id именно "canvas" -->
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <script>
+        // 1. Находим контейнер и забираем данные из дата-атрибутов
+        const container = document.getElementById('canvas-container');
+        const postId = container.dataset.postId;
+        const isExpired = container.dataset.isExpired === 'true';
+
+        // 2. Инициализируем холст Fabric.js
+        // ИСПРАВЛЕНО: 'c' заменено на 'canvas'
+        const canvas = new fabric.Canvas('canvas', { isDrawingMode: !isExpired });
+        canvas.freeDrawingBrush.color = '#ff0000';
+        canvas.freeDrawingBrush.width = 5;
+
+        // 3. Загружаем текущую картинку с бэкенда на холст
+        // ИСПРАВЛЕНО: добавлен crossOrigin, чтобы не было ошибки Tainted Canvas при сохранении
+        fabric.Image.fromURL('/media_file/current_' + postId + '.png', function(img) {
+            if (!img) {
+                console.error("Ошибка: изображение не загружено");
+                return;
+            }
+            canvas.setWidth(img.width);
+            canvas.setHeight(img.height);
+            canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+                originX: 'left',
+                originY: 'top'
+            });
+        }, { crossOrigin: 'anonymous' });
+
+        // 4. Настраиваем обработчики выбора цвета и размера кисти
+        document.getElementById('colorPicker').onchange = (e) => canvas.freeDrawingBrush.color = e.target.value;
+        document.getElementById('sizePicker').onchange = (e) => canvas.freeDrawingBrush.width = parseInt(e.target.value, 10);
+
+        // 5. Логика сохранения по кнопке
+        document.getElementById('saveBtn').onclick = async () => {
+            if (isExpired) {
+                alert('Время редактирования истекло!');
+                return;
+            }
+            
+            try {
+                // ИСПРАВЛЕНО: Надежный метод получения итогового изображения в Fabric.js
+                const dataURL = canvas.toDataURL({ format: 'png' });
+                // Конвертируем base64 (dataURL) в Blob объект
+                const blob = await (await fetch(dataURL)).blob();
+
+                const formData = new FormData();
+                formData.append('file', blob, 'drawing.png');
+
+                // Отправляем картинку на наш FastAPI
+                const res = await fetch('/api/post/' + postId + '/update', { 
+                    method: 'POST', 
+                    body: formData 
+                });
+                
+                if (res.ok) {
+                    alert('✅ Сохранено! Обновится в Telegram в течение 30 секунд.');
+                } else {
+                    alert('❌ Ошибка сохранения на сервере.');
+                }
+            } catch (err) {
+                console.error("Ошибка при сохранении:", err);
+                alert('❌ Произошла ошибка при формировании картинки.');
+            }
+        };
+    </script>
+</body>
+</html>
