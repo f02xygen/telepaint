@@ -112,7 +112,7 @@
     
     <div class="controls">
         <input type="color" id="colorPicker" value="#ff0000">
-        <input type="range" id="sizePicker" min="1" max="50" value="5">
+        <input type="range" id="sizePicker" min="1" max="10" value="5">
         <button id="saveBtn">💾 Save</button>
     </div>
 
@@ -192,7 +192,7 @@
             
             const saveBtn = document.getElementById('saveBtn');
             saveBtn.disabled = true;
-            saveBtn.innerText = '⏳ Сохраняю...';
+            saveBtn.innerText = '⏳ Saving...';
 
             try {
                 // Экспортируем с учетом масштаба обратно в исходное разрешение
@@ -212,9 +212,9 @@
                 });
                 
                 if (res.ok) {
-                    alert('✅ Сохранено! Обновится в Telegram в течение 30 секунд.');
+                    alert('✅ Saved! Updating telegram post in 30 seconds.');
                 } else {
-                    alert('❌ Ошибка сохранения на сервере.');
+                    alert('❌ Server saving error. Sorry');
                 }
             } catch (err) {
                 console.error("Ошибка при сохранении:", err);
